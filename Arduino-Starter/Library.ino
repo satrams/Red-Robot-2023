@@ -164,3 +164,24 @@ void drive(float l, float r) {
     digitalWrite(MOTOR1_PHASE, LOW);
   }
 }
+
+
+const int LINE_SENSOR_PINS[] = { 6, 7, 8, 9, 10, 11 };
+
+//int SENSOR_READING[] = { 0, 0, 0, 0, 0, 0 };
+
+void getLineSensors(int sensors[6]) {
+  for (int i = 0; i < 6; ++i) {
+    pinMode(LINE_SENSOR_PINS[i], OUTPUT);
+    digitalWrite(LINE_SENSOR_PINS[i], HIGH);
+    delay(1);
+    pinMode(LINE_SENSOR_PINS[i], INPUT);
+    unsigned long long start = micros();
+    while (digitalRead(LINE_SENSOR_PINS[i]) && micros() - start < 10000) {}
+    unsigned long long end = micros();
+
+    int diff = end - start;
+
+    sensors[i] = diff;
+  }
+}
