@@ -1,11 +1,25 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+#include <Servo.h>
+#include <servo.pio.h>
 
 #define MOTOR1_ENABLE 27
 #define MOTOR1_PHASE 26
+
 #define MOTOR2_ENABLE 21
 #define MOTOR2_PHASE 20
+
+#define MOTOR3_ENABLE 19
+#define MOTOR3_PHASE 18
+
+#define MOTOR4_ENABLE 17
+#define MOTOR4_PHASE 16
+
+#define SERVO1_PIN 15
+#define SERVO2_PIN 14
+#define SERVO3_PIN 13
+#define SERVO4_PIN 12
 
 uint8_t TARGET_ADDRESS[] = {0xF0,0xF0,0xF0,0xF0,0xD2};
 uint8_t LOCAL_ADDRESS[] = {0xF0,0xF0,0xF0,0xF0,0xE1};
@@ -14,37 +28,47 @@ uint8_t LOCAL_ADDRESS[] = {0xF0,0xF0,0xF0,0xF0,0xE1};
 
 RF24 radio(22,1);
 
-uint8_t radio_packet[7];
+#define PACKET_LEFT_X    0
+#define PACKET_LEFT_Y    1
+#define PACKET_RIGHT_X   2
+#define PACKET_RIGHT_Y   3
+#define PACKET_BUTTONS_1 4
+#define PACKET_BUTTONS_2 5
+
+#define ULTRASONIC_TRIG 4
+#define ULTRASONIC_ECHO 5
+
+uint8_t radio_packet[6];
 
 bool buttonA() {
-  return (radio_packet[5] >> 0) & 1;
+  return (radio_packet[PACKET_BUTTONS_1] >> 5) & 1;
 }
 bool buttonB() {
-  return (radio_packet[5] >> 1) & 1;
+  return (radio_packet[PACKET_BUTTONS_1] >> 6) & 1;
 }
 bool buttonX() {
-  return (radio_packet[5] >> 2) & 1;
+  return (radio_packet[PACKET_BUTTONS_1] >> 4) & 1;
 }
 bool buttonY() {
-  return (radio_packet[5] >> 3) & 1;
+  return (radio_packet[PACKET_BUTTONS_1] >> 7) & 1;
 }
 bool buttonLB() {
-  return (radio_packet[5] >> 4) & 1;
+  return (radio_packet[PACKET_BUTTONS_2] >> 0) & 1;
 }
 bool buttonRB() {
-  return (radio_packet[5] >> 5) & 1;
+  return (radio_packet[PACKET_BUTTONS_2] >> 1) & 1;
 }
 bool buttonBack() {
-  return (radio_packet[5] >> 6) & 1;
+  return (radio_packet[PACKET_BUTTONS_2] >> 4) & 1;
 }
 bool buttonStart() {
-  return (radio_packet[5] >> 7) & 1;
+  return (radio_packet[PACKET_BUTTONS_2] >> 5) & 1;
 }
 bool buttonL3() {
-  return (radio_packet[6] >> 0) & 1;
+  return (radio_packet[PACKET_BUTTONS_2] >> 6) & 1;
 }
 bool buttonR3() {
-  return (radio_packet[6] >> 1) & 1;
+  return (radio_packet[PACKET_BUTTONS_2] >> 7) & 1;
 }
 float axisLX() {
   float lx = (((float)(radio_packet[0])) / 127.5) - 1.0;
@@ -70,7 +94,13 @@ float axisRY() {
   if(ry >= -0.05 && ry <= 0.05) return 0.0;
   return ry;
 }
-float axisLT() {
+bool buttonLT() {
+  return (radio_packet[PACKET_BUTTONS_2] >> 2) & 1;
+}
+bool buttonRT() {
+  return (radio_packet[PACKET_BUTTONS_2] >> 3) & 1;
+}
+/*float axisLT() {
   float lt = (((float)(radio_packet[4])) - 127.5) / 127.5;
   lt = constrain(lt, 0.0, 1.0);
   if(lt <= 0.05) return 0.0;
@@ -81,9 +111,9 @@ float axisRT() {
   rt = constrain(rt, 0.0, 1.0);
   if(rt <= 0.05) return 0.0;
   return rt;
-}
+}*/
 int dpad() {
-  return radio_packet[6] / 4;
+  return radio_packet[PACKET_BUTTONS_1] & 0xF;
 }
 
 void setup1() {
@@ -109,16 +139,16 @@ void setup1() {
 }
 
 bool isPacketValid(uint8_t *pkt) {
-  if(pkt[0] != pkt[11]) return false;
-  if(pkt[1] != pkt[12]) return false;
-  if(pkt[2] != pkt[13]) return false;
-  if(pkt[3] != pkt[14]) return false;
+  if(pkt[0] != pkt[10]) return false;
+  if(pkt[1] != pkt[11]) return false;
+  if(pkt[2] != pkt[12]) return false;
+  if(pkt[3] != pkt[13]) return false;
   
   uint8_t sum = 0;
-  for(int i = 0; i < 15; i++) {
+  for(int i = 0; i < 14; i++) {
     sum += pkt[i];
   }
-  if(sum != pkt[15]) return false;
+  if(sum != pkt[14]) return false;
   
   return true;
 }
@@ -129,9 +159,9 @@ void loop1() {
     radio.read(buf, sizeof(buf));
 
     if(isPacketValid(buf+1)) {
-      memcpy(radio_packet, buf+5, 7);
+      memcpy(radio_packet, buf+5, 6);
     } else if(isPacketValid(buf+2)) {
-      memcpy(radio_packet, buf+6, 7);
+      memcpy(radio_packet, buf+6, 6);
     } else {
       // Invalid
       Serial.print("Invalid ");
@@ -144,25 +174,94 @@ void loop1() {
   }
 }
 
+void setMotor1(float speed) {
+  speed = constrain(speed, -1.0, 1.0);
+  analogWrite(MOTOR1_ENABLE, int(255 * abs(speed)));
+  digitalWrite(MOTOR1_PHASE, speed > 0.0);
+}
+
+void setMotor2(float speed) {
+  speed = constrain(speed, -1.0, 1.0);
+  analogWrite(MOTOR2_ENABLE, int(255 * abs(speed)));
+  digitalWrite(MOTOR2_PHASE, speed > 0.0);
+}
+
+void setMotor3(float speed) {
+  speed = constrain(speed, -1.0, 1.0);
+  analogWrite(MOTOR3_ENABLE, int(255 * abs(speed)));
+  digitalWrite(MOTOR3_PHASE, speed > 0.0);
+}
+
+void setMotor4(float speed) {
+  speed = constrain(speed, -1.0, 1.0);
+  analogWrite(MOTOR4_ENABLE, int(255 * abs(speed)));
+  digitalWrite(MOTOR4_PHASE, speed > 0.0);
+}
+
 void drive(float l, float r) {
-  l = constrain(l, -1.0, 1.0);
-  r = constrain(r, -1.0, 1.0);
-  
-  if(l > 0.0) {
-    analogWrite(MOTOR2_ENABLE, int(255 * l));
-    digitalWrite(MOTOR2_PHASE, HIGH);
-  } else {
-    analogWrite(MOTOR2_ENABLE, int(-255 * l));
-    digitalWrite(MOTOR2_PHASE, LOW);
+  setMotor1(l);
+  setMotor2(r);
+}
+
+Servo servo1, servo2, servo3, servo4;
+
+void init() {
+  static bool is_init = false;
+  if (is_init) {
+    return;
   }
-  
-  if(r > 0.0) {
-    analogWrite(MOTOR1_ENABLE, int(255 * r));
-    digitalWrite(MOTOR1_PHASE, HIGH);
-  } else {
-    analogWrite(MOTOR1_ENABLE, int(-255 * r));
-    digitalWrite(MOTOR1_PHASE, LOW);
+
+  pinMode(ULTRASONIC_TRIG, OUTPUT);
+  pinMode(ULTRASONIC_ECHO, INPUT);
+
+  servo1.attach(SERVO1_PIN);
+  servo2.attach(SERVO2_PIN);
+  servo3.attach(SERVO3_PIN);
+  servo4.attach(SERVO4_PIN);
+
+  is_init = true;
+}
+
+void setServo1(int angle) {
+  init();
+  angle = constrain(angle, 0, 180);
+  Serial.println(angle);
+  servo1.write(angle);
+}
+
+void setServo2(int angle) {
+  init();
+  angle = constrain(angle, 0, 180);
+  servo2.write(angle);
+}
+
+void setServo3(int angle) {
+  init();
+  angle = constrain(angle, 0, 180);
+  servo3.write(angle);
+}
+
+void setServo4(int angle) {
+  init();
+  angle = constrain(angle, 0, 180);
+  servo4.write(angle);
+}
+
+float getUltrasonic() {
+  init();
+
+
+  digitalWrite(ULTRASONIC_TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(ULTRASONIC_TRIG, LOW);
+
+  long duration = pulseIn(ULTRASONIC_ECHO, HIGH, 20000);
+
+  if (duration >= 20000) {
+    return 0.0;
   }
+
+  return duration * 0.034 / 2.0;
 }
 
 

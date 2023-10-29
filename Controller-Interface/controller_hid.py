@@ -3,37 +3,75 @@
 # Packs data to be sent over serial to NRF24L01+ USB adapter
 
 import sys
+import glob
 import hid
 import time
 import serial
 import random
 
-radio = serial.Serial("COM13", baudrate=115200)
+def find_serial_port():
+    if sys.platform.startswith('darwin'):
+        ports = glob.glob('/dev/tty.usbserial-*')
+    else:
+        raise Exception('TODO:')
 
-joystick_id = None
-for device in hid.enumerate():
-    if device["product_string"] == "Controller (Gamepad F310)":
-        joystick_id = (device["vendor_id"], device["product_id"])
-    #print(device["product_string"], device["vendor_id"], device["product_id"])
-if joystick_id is None:
-    print("Couldn't find joystick")
-    sys.exit()
-print("Found controller with id", joystick_id)
+    radio = None
+
+    for port in ports:
+        try:
+            print(port)
+            radio = serial.Serial(port, baudrate=115200)
+        except (OSError, serial.SerialException):
+            pass
+        
+    if radio is None:
+        print('Could not find radio! Is the dongle plugged in?')
+        sys.exit(1)
     
-joystick = hid.device()
-joystick.open(joystick_id[0], joystick_id[1])
-joystick.set_nonblocking(True)
+    return radio
 
-joystick_state = [127]*5 + [0]*2
-lastT = time.time()
-while True:
-    report = joystick.read(64)
-    t = time.time()
-    if report:
-        joystick_state = [report[0]] + [255-report[2]] + [report[4]] + [255-report[6]] + [report[9]] + [report[10], report[11]]
-    if t - lastT >= 0.1:
-        lastT = t
-        rand_bytes = random.randbytes(4)
-        packed_bytes = rand_bytes + bytes(joystick_state) + rand_bytes
-        packed_bytes += bytes([sum(packed_bytes) % 256])
-        radio.write(packed_bytes)
+def find_joystick():
+    joystick_id = None
+    for device in hid.enumerate():
+        if device['product_string'] == 'Logitech Dual Action':
+            joystick_id = (device["vendor_id"], device["product_id"])
+            break
+    if joystick_id is None:
+        print('Could not find controller! Is the controller plugged in?')
+        sys.exit(1)
+
+    print("Found controller with id", joystick_id)
+        
+    joystick = hid.device()
+    joystick.open(joystick_id[0], joystick_id[1])
+    joystick.set_nonblocking(True)
+
+    return joystick
+
+def main():
+    radio = find_serial_port()
+    joystick = find_joystick()
+
+    left_x, left_y, right_x, right_y, buttons1, buttons2 = 127, 127, 127, 127, 0, 0
+
+    last_t = time.time()
+    while True:
+        report = joystick.read(64)
+        if report:
+            left_x, left_y, right_x, right_y, buttons1, buttons2, padding1, padding2 = report
+
+            left_y  = 255 - left_y
+            right_y = 255 - right_y
+
+        t = time.time()
+        if t - last_t >= 0.1:
+            joystick_state = [left_x, left_y, right_x, right_y, buttons1, buttons2]
+
+            last_t = t
+            rand_bytes = random.randbytes(4)
+            packed_bytes = rand_bytes + bytes(joystick_state) + rand_bytes
+            packed_bytes += bytes([sum(packed_bytes) % 256])
+            radio.write(packed_bytes)
+
+if __name__ == '__main__':
+    main()
