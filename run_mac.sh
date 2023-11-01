@@ -9,4 +9,9 @@ cd "${DIR}"
 
 python3 -m pip install hidapi pyserial
 
-python3 ./Controller-Interface/controller_hid.py
+if python3 ./Controller-Interface/controller_hid.py ; then
+	echo "Finished"
+else
+	echo "An error occurred. Press any key to exit."
+	read -n 1 -s
+fi
