@@ -1,8 +1,10 @@
 // Replace 12345 with the correct team number and then uncomment the line below.
-#define TEAM_NUMBER 12345
+//#define TEAM_NUMBER 12345
 
 #ifndef TEAM_NUMBER
 #error "Define your team number with `#define TEAM_NUMBER 12345` at the top of the file."
+#elif TEAM_NUMBER < 1 || 20 < TEAM_NUMBER
+#error "Team number must be within 1 and 20
 #endif
 
 void setup() {

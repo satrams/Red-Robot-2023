@@ -17,6 +17,9 @@ The drivers for the radio module should be installed by default.
 
 ### Linux 
 
+Hopefully someone on your team isn't using Linux.
+If everyone on your team is using Linux, good luck!
+
 Install Python 3, probably using a command like the following:
 
 ```
@@ -28,6 +31,12 @@ If you are blind and rely on a braille teletype, we apologize for any inconvenie
 
 ```
 $ sudo apt remove brltty
+```
+
+Then, you will need to add your user to the dialout group to use the radio.
+
+```
+$ sudo useradd yourusernamehere dialout
 ```
 
 # Setup Instructions
