@@ -1,3 +1,7 @@
+// DO NOT CHANGE ANY CODE IN THIS FILE
+// YOU SHOULD ONLY NEED TO CHANGE THE CODE IN "Arduino-Starter.ino"
+// CHANGING THIS FILE MAY BREAK THE BUILD SYSTEM AND/OR THE WIRELESS SYSTEM
+
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
@@ -40,64 +44,64 @@ RF24 radio(22,1);
 
 uint8_t radio_packet[6];
 
-bool buttonA() {
+bool RR_buttonA() {
   return (radio_packet[PACKET_BUTTONS_1] >> 5) & 1;
 }
-bool buttonB() {
+bool RR_buttonB() {
   return (radio_packet[PACKET_BUTTONS_1] >> 6) & 1;
 }
-bool buttonX() {
+bool RR_buttonX() {
   return (radio_packet[PACKET_BUTTONS_1] >> 4) & 1;
 }
-bool buttonY() {
+bool RR_buttonY() {
   return (radio_packet[PACKET_BUTTONS_1] >> 7) & 1;
 }
-bool buttonLB() {
+bool RR_buttonLB() {
   return (radio_packet[PACKET_BUTTONS_2] >> 0) & 1;
 }
-bool buttonRB() {
+bool RR_buttonRB() {
   return (radio_packet[PACKET_BUTTONS_2] >> 1) & 1;
 }
-bool buttonBack() {
+bool RR_buttonBack() {
   return (radio_packet[PACKET_BUTTONS_2] >> 4) & 1;
 }
-bool buttonStart() {
+bool RR_buttonStart() {
   return (radio_packet[PACKET_BUTTONS_2] >> 5) & 1;
 }
-bool buttonL3() {
+bool RR_buttonL3() {
   return (radio_packet[PACKET_BUTTONS_2] >> 6) & 1;
 }
-bool buttonR3() {
+bool RR_buttonR3() {
   return (radio_packet[PACKET_BUTTONS_2] >> 7) & 1;
 }
-float axisLX() {
+float RR_axisLX() {
   float lx = (((float)(radio_packet[0])) / 127.5) - 1.0;
   lx = constrain(lx, -1.0, 1.0);
   if(lx >= -0.05 && lx <= 0.05) return 0.0;
   return lx;
 }
-float axisLY() {
+float RR_axisLY() {
   float ly = (((float)(radio_packet[1])) / 127.5) - 1.0;
   ly = constrain(ly, -1.0, 1.0);
   if(ly >= -0.05 && ly <= 0.05) return 0.0;
   return ly;
 }
-float axisRX() {
+float RR_axisRX() {
   float rx = (((float)(radio_packet[2])) / 127.5) - 1.0;
   rx = constrain(rx, -1.0, 1.0);
   if(rx >= -0.05 && rx <= 0.05) return 0.0;
   return rx;
 }
-float axisRY() {
+float RR_axisRY() {
   float ry = (((float)(radio_packet[3])) / 127.5) - 1.0;
   ry = constrain(ry, -1.0, 1.0);
   if(ry >= -0.05 && ry <= 0.05) return 0.0;
   return ry;
 }
-bool buttonLT() {
+bool RR_buttonLT() {
   return (radio_packet[PACKET_BUTTONS_2] >> 2) & 1;
 }
-bool buttonRT() {
+bool RR_buttonRT() {
   return (radio_packet[PACKET_BUTTONS_2] >> 3) & 1;
 }
 /*float axisLT() {
@@ -112,7 +116,7 @@ float axisRT() {
   if(rt <= 0.05) return 0.0;
   return rt;
 }*/
-int dpad() {
+int RR_dpad() {
   return radio_packet[PACKET_BUTTONS_1] & 0xF;
 }
 
@@ -121,6 +125,11 @@ void setup1() {
   pinMode(MOTOR1_PHASE, OUTPUT);
   pinMode(MOTOR2_ENABLE, OUTPUT);
   pinMode(MOTOR2_PHASE, OUTPUT);
+
+  pinMode(MOTOR3_ENABLE, OUTPUT);
+  pinMode(MOTOR3_PHASE, OUTPUT);
+  pinMode(MOTOR4_ENABLE, OUTPUT);
+  pinMode(MOTOR4_PHASE, OUTPUT);
   
   SPI.setTX(3);
   SPI.setRX(0);
@@ -174,33 +183,33 @@ void loop1() {
   }
 }
 
-void setMotor1(float speed) {
+void RR_setMotor1(float speed) {
   speed = constrain(speed, -1.0, 1.0);
   analogWrite(MOTOR1_ENABLE, int(255 * abs(speed)));
   digitalWrite(MOTOR1_PHASE, speed > 0.0);
 }
 
-void setMotor2(float speed) {
+void RR_setMotor2(float speed) {
   speed = constrain(speed, -1.0, 1.0);
   analogWrite(MOTOR2_ENABLE, int(255 * abs(speed)));
   digitalWrite(MOTOR2_PHASE, speed > 0.0);
 }
 
-void setMotor3(float speed) {
+void RR_setMotor3(float speed) {
   speed = constrain(speed, -1.0, 1.0);
   analogWrite(MOTOR3_ENABLE, int(255 * abs(speed)));
   digitalWrite(MOTOR3_PHASE, speed > 0.0);
 }
 
-void setMotor4(float speed) {
+void RR_setMotor4(float speed) {
   speed = constrain(speed, -1.0, 1.0);
   analogWrite(MOTOR4_ENABLE, int(255 * abs(speed)));
   digitalWrite(MOTOR4_PHASE, speed > 0.0);
 }
 
-void drive(float l, float r) {
-  setMotor1(l);
-  setMotor2(r);
+void RR_drive(float l, float r) {
+  RR_setMotor1(l);
+  RR_setMotor2(r);
 }
 
 Servo servo1, servo2, servo3, servo4;
@@ -214,40 +223,39 @@ void init() {
   pinMode(ULTRASONIC_TRIG, OUTPUT);
   pinMode(ULTRASONIC_ECHO, INPUT);
 
-  servo1.attach(SERVO1_PIN);
-  servo2.attach(SERVO2_PIN);
-  servo3.attach(SERVO3_PIN);
-  servo4.attach(SERVO4_PIN);
+  servo1.attach(SERVO1_PIN, 600, 2400);
+  servo2.attach(SERVO2_PIN, 600, 2400);
+  servo3.attach(SERVO3_PIN, 600, 2400);
+  servo4.attach(SERVO4_PIN, 600, 2400);
 
   is_init = true;
 }
 
-void setServo1(int angle) {
+void RR_setServo1(int angle) {
   init();
   angle = constrain(angle, 0, 180);
-  Serial.println(angle);
   servo1.write(angle);
 }
 
-void setServo2(int angle) {
+void RR_setServo2(int angle) {
   init();
   angle = constrain(angle, 0, 180);
   servo2.write(angle);
 }
 
-void setServo3(int angle) {
+void RR_setServo3(int angle) {
   init();
   angle = constrain(angle, 0, 180);
   servo3.write(angle);
 }
 
-void setServo4(int angle) {
+void RR_setServo4(int angle) {
   init();
   angle = constrain(angle, 0, 180);
   servo4.write(angle);
 }
 
-float getUltrasonic() {
+float RR_getUltrasonic() {
   init();
 
 
@@ -269,7 +277,7 @@ const int LINE_SENSOR_PINS[] = { 6, 7, 8, 9, 10, 11 };
 
 //int SENSOR_READING[] = { 0, 0, 0, 0, 0, 0 };
 
-void getLineSensors(int sensors[6]) {
+void RR_getLineSensors(int sensors[6]) {
   for (int i = 0; i < 6; ++i) {
     pinMode(LINE_SENSOR_PINS[i], OUTPUT);
     digitalWrite(LINE_SENSOR_PINS[i], HIGH);
@@ -284,3 +292,5 @@ void getLineSensors(int sensors[6]) {
     sensors[i] = diff;
   }
 }
+
+// vim: tabstop=2 shiftwidth=2 expandtab
