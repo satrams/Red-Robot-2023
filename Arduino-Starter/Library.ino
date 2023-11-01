@@ -184,7 +184,7 @@ void loop1() {
   if(radio.available()) {
     uint8_t buf[20];
     radio.read(buf, sizeof(buf));
-    Serial.println("Recv radio packet");
+    //Serial.println("Recv radio packet");
 
     if(isPacketValid(buf+1)) {
       memcpy(radio_packet, buf+5, 6);
