@@ -7,11 +7,15 @@ import glob
 import hid
 import time
 import serial
+import serial.tools.list_ports
 import random
 
 def find_serial_port():
     if sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/tty.usbserial-*')
+    elif sys.platform.startswith('win'):
+        ports = filter(lambda x: x.pid == 29987, serial.tools.list_ports.comports())
+        ports = list(map(lambda x: x.name, ports))
     else:
         raise Exception('TODO:')
 
