@@ -6,7 +6,7 @@ A repository for all of the resouces for the 2023 Red Robot Hackathon.
 ### Arduino IDE & Code Setup
 
 1. Install [The Arduino IDE](https://www.arduino.cc/en/software).
-2. Install [support for the Pi Pico](https://github.com/earlephilhower/arduino-pico).
+2. Install [support for the Pi Pico](https://github.com/earlephilhower/arduino-pico#installation).
 3. Download the repository and unzip it to a convenient place on your computer.
 4. Open `Arduino-Starter.ino`
 5. Select the Raspberry Pi Pico (NOT Pico W and NOT the Mbed version) in the dropdown on the top left. You may need to plug in the Pico first.
