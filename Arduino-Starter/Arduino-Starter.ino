@@ -17,7 +17,7 @@ void setup() {
 int temp = 0;
 
 bool line_follow = false;
-const float forward = 0.5;
+const float forward = 0.3;
 
 void loop() {
   // Read the four joystick axes
@@ -30,8 +30,8 @@ void loop() {
   // Arcade-drive scheme
   // Left Y-axis = throttle
   // Right X-axis = steering
-  RR_setMotor1(leftY + rightX);
-  RR_setMotor2(leftY - rightX);
+  // RR_setMotor1(leftY + rightX);
+  // RR_setMotor2(leftY - rightX);
 
   // Get the button states
   bool btnA = RR_buttonA();
@@ -48,12 +48,17 @@ void loop() {
   else if (btnB) {
     PIDReset();
     line_follow = false;
+    RR_setMotor1(0);
+    RR_setMotor2(0);
+
   }
 
   if (line_follow) {
-    float turnVal = PIDControl(get_current_value);
-    RR_setMotor1(forward + turnVal);
-    RR_setMotor2(forward - turnVal);
+    float turnVal = PIDControl(get_current_value());
+    // Serial.println(turnVal);
+    Serial.println();
+    RR_setMotor1(forward - turnVal);
+    RR_setMotor2(forward + turnVal);
   }
 
 
@@ -155,7 +160,7 @@ float sensor_mins[6] = {
   770,
   1007,
   1453
-}
+};
 
 float sensor_maxes[6] = {
   6214,
@@ -164,7 +169,7 @@ float sensor_maxes[6] = {
   3531,
   4610,
   7025
-}
+};
 
 float map_normalize(float val, float min, float max) {
   return (val - min) / (max - min);
@@ -175,27 +180,45 @@ float get_current_value() {
 
   RR_getLineSensors(sensors);
 
-  int norms[6];
+  float norms[6];
+
+  float weights[6] = {
+    -2.5,
+    -1.5,
+    -0.5,
+    0.5,
+    1.5,
+    2.5
+  };
 
   for (int i = 0; i < 6; i++) {
-    norms[i] = constrain(map_normalize(sensors[i], sensor_mins[i], sensor_maxes[i], 0, 1);
+    norms[i] = constrain(map_normalize(sensors[i], sensor_mins[i], sensor_maxes[i]), 0, 1);
   }
 
-  int output = 0;
+  float output = 0.0;
 
   for (int i = 0; i < 6; i++) {
-    output += (i-2) * norms[i];
+    output += weights[i] * norms[i];
   }
+  // output = output/6;
+  Serial.print("Norms: ");
+  for (int i = 0; i < 6; i++) {
+    Serial.print(norms[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+  Serial.print("Output value: ");
+  Serial.println(output);
 
   return output; // Should be .5 if it's even
 }
 
 const int T = 2; // Fixed Timestep
-const float kp = 1;
-const float kd = .1;
+const float kp = 0.25;
+const float kd = .005;
 unsigned long last_time = 0;
 float last_error = 0;
-const float setpoint = 0.5;
+const float setpoint = 0;
 
 void PIDReset() {
   last_time = 0;
@@ -213,10 +236,12 @@ float PIDControl(float currentValue) {
   
   float output_value = kp*error + (kd/delta)*(delta_error);
 
+  Serial.println(output_value);
+
   last_error = error;
   last_time = current_time;
 
-  return output_value;
+  return output_value/2;
 }
 
 
