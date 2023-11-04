@@ -8,18 +8,37 @@
 #endif
 
 
-
-
 void setup() {
   Serial.begin(115200);
 }
 
 int temp = 0;
 
-bool line_follow = false;
-const float forward = 0.3;
+bool autonEnabled = false;
+bool lineFollow = false;
+const float forward = 0.35;
+const unsigned long autonTime = 20000; // 20 SEconds for autonomous
+unsigned long startTime = 0;
+const unsigned long lineFollowTime = 9200;
+const float wallDistance = 50; // 50 cm
+
+void cancel_auton() {
+    PID_reset();
+    lineFollow = false;
+    RR_setMotor1(0); // This is just for safety
+  RR_setMotor2(0);
+}
+
+void start_auton() {
+  PID_reset();
+  lineFollow = true;
+  startTime = millis();
+}
 
 void loop() {
+  float motor1 = 0;
+  float motor2 = 0;
+
   // Read the four joystick axes
   // These will be in the range [-1.0, 1.0]
   float rightX = RR_axisRX();
@@ -42,86 +61,38 @@ void loop() {
   bool btnLB = RR_buttonLB();
 
   if (btnA) {
-    PIDReset();
-    line_follow = true;
+    start_auton();
   }
   else if (btnB) {
-    PIDReset();
-    line_follow = false;
-    RR_setMotor1(0);
-    RR_setMotor2(0);
-
+    cancel_auton();
   }
 
-  if (line_follow) {
-    float turnVal = PIDControl(get_current_value());
-    // Serial.println(turnVal);
-    Serial.println();
-    RR_setMotor1(forward - turnVal);
-    RR_setMotor2(forward + turnVal);
+  if (autonEnabled) {
+    if (millis() - startTime < autonTime) {
+      cancel_auton();
+    }
+    
+    if (get_average_ultrasonic() < wallDistance) {
+      lineFollow = false; // Change mode to set servo position
+    }
+    
+    if (lineFollow) {
+        float turnVal = PID_control(get_current_value());
+        // Serial.println(turnVal);
+        Serial.println();
+        motor1 = forward - turnVal;
+        motor2 = forward + turnVal;
+    }
+    else {
+      //Set the position of the servo
+    }
+  }
+  else {
+    // Teleop Controls
+    motor1 = leftY + rightX;
+    motor2 = leftY - rightX;
   }
 
-
-  // // Control motor3 port (unused on base robot) using A/B buttons
-  // if (btnA) {
-  //   RR_setMotor3(1.0);
-  // }
-  // else if (btnB) {
-  //   RR_setMotor3(-1.0);
-  // }
-  // else {
-  //   RR_setMotor3(0.0);
-  // }
-
-  // // Control motor4 port (unused on base robot) using X/Y buttons
-  // if (btnX) {
-  //   RR_setMotor4(1.0);
-  // }
-  // else if (btnY) {
-  //   RR_setMotor4(-1.0);
-  // }
-  // else {
-  //   RR_setMotor4(0.0);
-  // }
-
-  // // Control servo 1 using the dpad
-  // // 6 = left, 2 = right, 0 = up, 4 = down, 8 = center
-  // // (note that you will also see the value 0 if the controller
-  // //  is disconnected)
-  // if (RR_dpad() == 6) { // left
-
-  //   // we can't move a servo less than 0 degrees
-  //   if (temp > 0) temp -= 10;
-  // }
-  // else if (RR_dpad() == 2) { // right
-
-  //   // we can't move a servo past 180 degrees
-  //   // for continuous rotation, try using a DC motor
-  //   if (temp < 180) temp += 10;
-  // }
-  // RR_setServo1(temp);
-
-  // // Control servo 2 using the shoulder buttons
-  // // This example moves the servo to fixed points
-  // // You can change the angles based on your mechanism
-  // // (this is great for a mechanism that only has 2 states,
-  // //  such as a grabber or hook)
-  // if (btnRB) {
-  //   RR_setServo2(180);
-  // }
-  // else if (btnLB) {
-  //   RR_setServo2(0);
-  // }
-
-  // we also have RR_setServo3 and RR_setServo4 available
-
-
-  // read the ultrasonic sensors
-
-  // Serial.print("Ultrasonic=");
-  // Serial.print(RR_getUltrasonic());
-  // Serial.print(" ;; ");
-  
   // int sensors[6];
 
   // Serial.print("Line sensors=");
@@ -136,8 +107,12 @@ void loop() {
   // Serial.print(btnY ? 1 : 0);
   // Serial.println();
 
+  RR_setMotor1(motor1);
+  RR_setMotor2(motor2);
+
   // This is important - it sleeps for 0.02 seconds (= 50 times / second)
   // Running the code too fast will overwhelm the microcontroller and peripherals
+
   delay(20);
 }
 
@@ -195,37 +170,37 @@ float get_current_value() {
     norms[i] = constrain(map_normalize(sensors[i], sensor_mins[i], sensor_maxes[i]), 0, 1);
   }
 
-  float output = 0.0;
-
+  float output = 0;
+  
   for (int i = 0; i < 6; i++) {
     output += weights[i] * norms[i];
   }
   // output = output/6;
-  Serial.print("Norms: ");
-  for (int i = 0; i < 6; i++) {
-    Serial.print(norms[i]);
-    Serial.print(" ");
-  }
-  Serial.println();
-  Serial.print("Output value: ");
-  Serial.println(output);
+  // Serial.print("Norms: ");
+  // for (int i = 0; i < 6; i++) {
+  //   Serial.print(norms[i]);
+  //   Serial.print(" ");
+  // }
+  // Serial.println();
+  // Serial.print("Output value: ");
+  // Serial.println(output);
 
   return output; // Should be .5 if it's even
 }
 
 const int T = 2; // Fixed Timestep
-const float kp = 0.25;
-const float kd = .005;
+const float kp = 0.125;
+const float kd = -.01;
 unsigned long last_time = 0;
 float last_error = 0;
 const float setpoint = 0;
 
-void PIDReset() {
+void PID_reset() {
   last_time = 0;
   last_error = 0;
 }
 
-float PIDControl(float currentValue) {
+float PID_control(float currentValue) {
   
   unsigned long current_time = millis();
 
@@ -236,13 +211,27 @@ float PIDControl(float currentValue) {
   
   float output_value = kp*error + (kd/delta)*(delta_error);
 
-  Serial.println(output_value);
+  //Serial.println(output_value);
 
   last_error = error;
   last_time = current_time;
 
-  return output_value/2;
+  return output_value;
 }
 
+float val1 = 0;
+float val2 = 0;
+float val3 = 0;
+
+float get_average_ultrasonic() {
+  float current = RR_getUltrasonic();
+  float output = (current + val1 + val2 + val3)/4;
+
+  val1 = val2;
+  val2 = val3;
+  val3 = current;
+
+  return output;
+}
 
 // vim: tabstop=2 shiftwidth=2 expandtab
