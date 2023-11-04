@@ -149,21 +149,21 @@ void loop() {
 // return output
 
 float sensor_mins[6] = {
-  100,
-  100,
-  100,
-  100,
-  100,
-  100
+  3391,
+  3114,
+  2270,
+  2010,
+  2267,
+  3283
 }
 
 float sensor_maxes[6] = {
-  900,
-  900,
-  900,
-  900,
-  900,
-  900
+  10000,
+  10000,
+  10000,
+  10000,
+  10000,
+  10000
 }
 
 float map_normalize(float val, float min, float max) {
