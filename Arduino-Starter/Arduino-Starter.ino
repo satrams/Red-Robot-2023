@@ -1,5 +1,5 @@
 // Replace 12345 with the correct team number and then uncomment the line below.
-//#define TEAM_NUMBER 12345
+#define TEAM_NUMBER 9
 
 #ifndef TEAM_NUMBER
 #error "Define your team number with `#define TEAM_NUMBER 12345` at the top of the file."
@@ -7,11 +7,17 @@
 #error "Team number must be within 1 and 20"
 #endif
 
+
+
+
 void setup() {
   Serial.begin(115200);
 }
 
 int temp = 0;
+
+bool line_follow = false;
+const float forward = 0.5;
 
 void loop() {
   // Read the four joystick axes
@@ -35,82 +41,183 @@ void loop() {
   bool btnRB = RR_buttonRB();
   bool btnLB = RR_buttonLB();
 
-  // Control motor3 port (unused on base robot) using A/B buttons
   if (btnA) {
-    RR_setMotor3(1.0);
+    PIDReset();
+    line_follow = true;
   }
   else if (btnB) {
-    RR_setMotor3(-1.0);
-  }
-  else {
-    RR_setMotor3(0.0);
+    PIDReset();
+    line_follow = false;
   }
 
-  // Control motor4 port (unused on base robot) using X/Y buttons
-  if (btnX) {
-    RR_setMotor4(1.0);
-  }
-  else if (btnY) {
-    RR_setMotor4(-1.0);
-  }
-  else {
-    RR_setMotor4(0.0);
+  if (line_follow) {
+    float turnVal = PIDControl(get_current_value);
+    RR_setMotor1(forward + turnVal);
+    RR_setMotor2(forward - turnVal);
   }
 
-  // Control servo 1 using the dpad
-  // 6 = left, 2 = right, 0 = up, 4 = down, 8 = center
-  // (note that you will also see the value 0 if the controller
-  //  is disconnected)
-  if (RR_dpad() == 6) { // left
 
-    // we can't move a servo less than 0 degrees
-    if (temp > 0) temp -= 10;
-  }
-  else if (RR_dpad() == 2) { // right
+  // // Control motor3 port (unused on base robot) using A/B buttons
+  // if (btnA) {
+  //   RR_setMotor3(1.0);
+  // }
+  // else if (btnB) {
+  //   RR_setMotor3(-1.0);
+  // }
+  // else {
+  //   RR_setMotor3(0.0);
+  // }
 
-    // we can't move a servo past 180 degrees
-    // for continuous rotation, try using a DC motor
-    if (temp < 180) temp += 10;
-  }
-  RR_setServo1(temp);
+  // // Control motor4 port (unused on base robot) using X/Y buttons
+  // if (btnX) {
+  //   RR_setMotor4(1.0);
+  // }
+  // else if (btnY) {
+  //   RR_setMotor4(-1.0);
+  // }
+  // else {
+  //   RR_setMotor4(0.0);
+  // }
 
-  // Control servo 2 using the shoulder buttons
-  // This example moves the servo to fixed points
-  // You can change the angles based on your mechanism
-  // (this is great for a mechanism that only has 2 states,
-  //  such as a grabber or hook)
-  if (btnRB) {
-    RR_setServo2(180);
-  }
-  else if (btnLB) {
-    RR_setServo2(0);
-  }
+  // // Control servo 1 using the dpad
+  // // 6 = left, 2 = right, 0 = up, 4 = down, 8 = center
+  // // (note that you will also see the value 0 if the controller
+  // //  is disconnected)
+  // if (RR_dpad() == 6) { // left
+
+  //   // we can't move a servo less than 0 degrees
+  //   if (temp > 0) temp -= 10;
+  // }
+  // else if (RR_dpad() == 2) { // right
+
+  //   // we can't move a servo past 180 degrees
+  //   // for continuous rotation, try using a DC motor
+  //   if (temp < 180) temp += 10;
+  // }
+  // RR_setServo1(temp);
+
+  // // Control servo 2 using the shoulder buttons
+  // // This example moves the servo to fixed points
+  // // You can change the angles based on your mechanism
+  // // (this is great for a mechanism that only has 2 states,
+  // //  such as a grabber or hook)
+  // if (btnRB) {
+  //   RR_setServo2(180);
+  // }
+  // else if (btnLB) {
+  //   RR_setServo2(0);
+  // }
 
   // we also have RR_setServo3 and RR_setServo4 available
 
 
   // read the ultrasonic sensors
 
-  Serial.print("Ultrasonic=");
-  Serial.print(RR_getUltrasonic());
-  Serial.print(" ;; ");
-  int sensors[6];
+  // Serial.print("Ultrasonic=");
+  // Serial.print(RR_getUltrasonic());
+  // Serial.print(" ;; ");
+  
+  // int sensors[6];
 
-  Serial.print("Line sensors=");
-  RR_getLineSensors(sensors);
-  for (int i = 0; i < 6; ++i) {
-    Serial.print(sensors[i]);
-    Serial.print(" ");
-  }
-  Serial.print(btnA ? 1 : 0);
-  Serial.print(btnB ? 1 : 0);
-  Serial.print(btnX ? 1 : 0);
-  Serial.print(btnY ? 1 : 0);
-  Serial.println();
+  // Serial.print("Line sensors=");
+  // RR_getLineSensors(sensors);
+  // for (int i = 0; i < 6; ++i) {
+  //   Serial.print(sensors[i]);
+  //   Serial.print(" ");
+  // }
+  // Serial.print(btnA ? 1 : 0);
+  // Serial.print(btnB ? 1 : 0);
+  // Serial.print(btnX ? 1 : 0);
+  // Serial.print(btnY ? 1 : 0);
+  // Serial.println();
 
   // This is important - it sleeps for 0.02 seconds (= 50 times / second)
   // Running the code too fast will overwhelm the microcontroller and peripherals
   delay(20);
 }
+
+// PID Control
+// General loop:
+// Fixed timestep T
+// Current time, last time, delta_time (current time - last time)
+// Current error, last error, delta_error (error - last error)
+// Pvalue = Kp * error
+// Dvalue = Kd * delta_error/T
+// output = Pvalue + Dvalue
+// last error = current error
+// last time = current time
+// return output
+
+float sensor_mins[6] = {
+  100,
+  100,
+  100,
+  100,
+  100,
+  100
+}
+
+float sensor_maxes[6] = {
+  900,
+  900,
+  900,
+  900,
+  900,
+  900
+}
+
+float map_normalize(float val, float min, float max) {
+  return (val - min) / (max - min);
+}
+
+float get_current_value() {
+  int sensors[6];
+
+  RR_getLineSensors(sensors);
+
+  int norms[6];
+
+  for (int i = 0; i < 6; i++) {
+    norms[i] = constrain(map_normalize(sensors[i], sensor_mins[i], sensor_maxes[i], 0, 1);
+  }
+
+  int output = 0;
+
+  for (int i = 0; i < 6; i++) {
+    output += (i-2) * norms[i];
+  }
+
+  return output; // Should be .5 if it's even
+}
+
+const int T = 2; // Fixed Timestep
+const float kp = 0;
+const float kd = 0;
+unsigned long last_time = 0;
+float last_error = 0;
+const float setpoint = 0.5;
+
+void PIDReset() {
+  last_time = 0;
+  last_error = 0;
+}
+
+float PIDControl(float currentValue) {
+  
+  unsigned long current_time = millis();
+
+  float delta = current_time - last_time;
+
+  float error = setpoint - currentValue;
+  float delta_error = error - last_error;
+  
+  float output_value = kp*error + (kd/delta)*(delta_error);
+
+  last_error = error;
+  last_time = current_time;
+
+  return output_value;
+}
+
 
 // vim: tabstop=2 shiftwidth=2 expandtab
