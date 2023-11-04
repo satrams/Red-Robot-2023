@@ -191,8 +191,8 @@ float get_current_value() {
 }
 
 const int T = 2; // Fixed Timestep
-const float kp = 0;
-const float kd = 0;
+const float kp = 1;
+const float kd = .1;
 unsigned long last_time = 0;
 float last_error = 0;
 const float setpoint = 0.5;
