@@ -12,27 +12,44 @@ void setup() {
   Serial.begin(115200);
 }
 
-int temp = 0;
-
 bool autonEnabled = false;
 bool lineFollow = false;
-const float forward = 0.35;
+const float forward = 0.34;
 const unsigned long autonTime = 20000; // 20 SEconds for autonomous
 unsigned long startTime = 0;
-const unsigned long lineFollowTime = 9200;
-const float wallDistance = 50; // 50 cm
+const unsigned long lineFollowTime = 19000; // optional timing for how long it takes to get to the end of the line
+const float wallDistance = 20; // 50 cm
+const float turnSpeed = 0.75;
+const float topServoVal = 60;
+const float bottomServoVal = 180;
+const unsigned long failsafeTime = 11000; // A time to go to the next phase if still in lineFollow
+bool deploy = false;
+const unsigned long deployTime = 800;
+bool undeploy = false;
+const unsigned long undeployTime = 500;
+bool moveBack = false;
+const float moveBackSpeed = .7;
+const unsigned long moveBackTime = 2000;
 
 void cancel_auton() {
     PID_reset();
     lineFollow = false;
+    moveBack = false;
+    deploy = false;
     RR_setMotor1(0); // This is just for safety
-  RR_setMotor2(0);
+    RR_setMotor2(0);
+    Serial.println("ahhhhh");
+    autonEnabled = false;
 }
 
 void start_auton() {
   PID_reset();
   lineFollow = true;
+  deploy = false;
+  moveBack = false;
+  autonEnabled = true;
   startTime = millis();
+  Serial.println("yipeee");
 }
 
 void loop() {
@@ -60,37 +77,93 @@ void loop() {
   bool btnRB = RR_buttonRB();
   bool btnLB = RR_buttonLB();
 
-  if (btnA) {
-    start_auton();
-  }
-  else if (btnB) {
-    cancel_auton();
-  }
+  // Serial.println("-----------");
+  // Serial.println(btnA);
+  // Serial.println(btnB);
+  // Serial.println(btnX);
+  // Serial.println(btnY);
 
   if (autonEnabled) {
-    if (millis() - startTime < autonTime) {
+    if (millis() - startTime >= autonTime) {
       cancel_auton();
     }
     
-    if (get_average_ultrasonic() < wallDistance) {
+    //we might also want a timing thing here but it's not that important
+    float ultrasonic = get_average_ultrasonic();
+    if (millis() - startTime >= lineFollowTime) {
       lineFollow = false; // Change mode to set servo position
+      deploy = true;
+    }
+
+    if (millis() - startTime >= lineFollowTime + deployTime) {
+      lineFollow = false;
+      deploy = false;
+      undeploy = true;
+    }
+
+    if (millis() - startTime >= lineFollowTime + deployTime + undeployTime) {
+      lineFollow = false;
+      deploy = false;
+      undeploy = false;
+      moveBack = true;
+    }
+
+    if (millis() - startTime >= lineFollowTime + deployTime  + undeployTime + moveBackTime) {
+      lineFollow = false;
+      deploy = false;
+      moveBack = false;
     }
     
     if (lineFollow) {
         float turnVal = PID_control(get_current_value());
         // Serial.println(turnVal);
-        Serial.println();
+        // Serial.println();
         motor1 = forward - turnVal;
         motor2 = forward + turnVal;
     }
-    else {
+    else if (deploy) {
       //Set the position of the servo
+      RR_setServo3(topServoVal);
+    }
+    else if (undeploy) {
+      RR_setServo3(bottomServoVal);
+    }
+    else if (moveBack) {
+      motor1 = -moveBackSpeed;
+      motor2 = -moveBackSpeed;
+    }
+
+    if (btnX) {
+      Serial.println("stopped");
+      cancel_auton();
     }
   }
   else {
     // Teleop Controls
-    motor1 = leftY + rightX;
-    motor2 = leftY - rightX;
+    motor1 = sign(leftY) * square(leftY) +
+     (sign(rightX) * square(rightX) * turnSpeed);
+    motor2 = sign(leftY) * square(leftY) -
+     (sign(rightX) * square(rightX) * turnSpeed);
+
+    // read the ultrasonic sensors
+    Serial.print("Ultrasonic=");
+    Serial.println(RR_getUltrasonic());
+    Serial.print(" ;; ");
+
+    
+    if (btnY) {
+      Serial.println("started");
+      start_auton();
+    }
+
+    if (btnA) {
+      // Set servo down
+      RR_setServo3(topServoVal);
+    }
+    else if (btnB) {
+      // Set servo up      
+      RR_setServo3(bottomServoVal);
+    }
   }
 
   // int sensors[6];
@@ -106,6 +179,8 @@ void loop() {
   // Serial.print(btnX ? 1 : 0);
   // Serial.print(btnY ? 1 : 0);
   // Serial.println();
+
+  //Serial.println(motor1);
 
   RR_setMotor1(motor1);
   RR_setMotor2(motor2);
@@ -170,6 +245,12 @@ float get_current_value() {
     norms[i] = constrain(map_normalize(sensors[i], sensor_mins[i], sensor_maxes[i]), 0, 1);
   }
 
+  float sum = 0;
+
+  for (int i = 0; i < 6; i++) {
+    sum += norms[i];
+  }
+
   float output = 0;
   
   for (int i = 0; i < 6; i++) {
@@ -185,12 +266,12 @@ float get_current_value() {
   // Serial.print("Output value: ");
   // Serial.println(output);
 
-  return output; // Should be .5 if it's even
+  return output/sum; // Should be .5 if it's even
 }
 
 const int T = 2; // Fixed Timestep
-const float kp = 0.125;
-const float kd = -.01;
+const float kp = 0.27;
+const float kd = 0.04;
 unsigned long last_time = 0;
 float last_error = 0;
 const float setpoint = 0;
@@ -200,14 +281,15 @@ void PID_reset() {
   last_error = 0;
 }
 
+// Just returns some control output
 float PID_control(float currentValue) {
   
   unsigned long current_time = millis();
 
   float delta = current_time - last_time;
 
-  float error = setpoint - currentValue;
-  float delta_error = error - last_error;
+  float error = setpoint - currentValue; // positive when to the left, negative when to the right
+  float delta_error = error - last_error; // negative decreasing, positive increasing
   
   float output_value = kp*error + (kd/delta)*(delta_error);
 
@@ -219,19 +301,56 @@ float PID_control(float currentValue) {
   return output_value;
 }
 
-float val1 = 0;
-float val2 = 0;
-float val3 = 0;
+float val1 = -1;
+float val2 = -1;
+float val3 = -1;
+float prevAvg = -1;
+const float diffMax = 20;
+
+// Returns the average value of the last couple frames
 
 float get_average_ultrasonic() {
   float current = RR_getUltrasonic();
-  float output = (current + val1 + val2 + val3)/4;
 
+  int num = 1;
+  if (abs(current - prevAvg) > diffMax) {
+    return -1;
+  }
+
+  float output = current;
+
+  // Only add the numbers to the average if they exist
+  if (val3 != -1) {
+    output += val3;
+    num++;
+  }
+  if (val2 != -1) {
+    output += val2;
+    num++;
+  }
+  if (val1 != -1) {
+    output += val1;
+    num++;
+  }
+
+  // Rotate variables back
   val1 = val2;
   val2 = val3;
   val3 = current;
 
+  //Divide by the average
+  output /= num;
+
+  prevAvg = output;
   return output;
+}
+
+float sign(float val) {
+  return  (val > 0) - (val < 0);
+}
+
+float square(float val) {
+  return val * val;
 }
 
 // vim: tabstop=2 shiftwidth=2 expandtab
