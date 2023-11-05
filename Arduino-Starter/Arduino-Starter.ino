@@ -17,7 +17,7 @@ bool lineFollow = false;
 const float forward = 0.34;
 const unsigned long autonTime = 20000; // 20 SEconds for autonomous
 unsigned long startTime = 0;
-const unsigned long lineFollowTime = 19000; // optional timing for how long it takes to get to the end of the line
+const unsigned long lineFollowTime = 17000; // optional timing for how long it takes to get to the end of the line
 const float wallDistance = 20; // 50 cm
 const float turnSpeed = 0.75;
 const float topServoVal = 60;
@@ -29,7 +29,7 @@ bool undeploy = false;
 const unsigned long undeployTime = 500;
 bool moveBack = false;
 const float moveBackSpeed = .7;
-const unsigned long moveBackTime = 2000;
+const unsigned long moveBackTime = 0;
 
 void cancel_auton() {
     PID_reset();
